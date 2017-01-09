@@ -1,12 +1,9 @@
 package tgo
 
 import (
-	"google.golang.org/grpc"
-
-	"github.com/jolestar/go-commons-pool"
-
 	"errors"
-
+	"github.com/tonyjt/gogrpc"
+	"google.golang.org/grpc"
 	"sync"
 )
 
@@ -17,8 +14,10 @@ type DaoGRPC struct {
 }
 
 var (
-	grpcPoolMap map[string]*pool.ObjectPool
-	grpcPoolMux sync.Mutex
+	//grpcPoolMap map[string]*pool.ObjectPool
+	//grpcPoolMux sync.Mutex
+	grpcConn *grpc.ClientConn
+	grpcMux  sync.Mutex
 )
 
 func daoGRPCGetConfig(serverName string) (*ConfigPool, error) {
@@ -34,79 +33,101 @@ func daoGRPCGetConfig(serverName string) (*ConfigPool, error) {
 }
 
 func (dao *DaoGRPC) GetConn() (*grpc.ClientConn, error) {
-
-	if grpcPoolMap == nil {
-		grpcPoolMux.Lock()
-		if grpcPoolMap == nil {
-			grpcPoolMap = make(map[string]*pool.ObjectPool)
-		}
-		grpcPoolMux.Unlock()
-	}
-
-	grpcPool, ok := grpcPoolMap[dao.ServerName]
-
-	if !ok || grpcPool == nil {
-		grpcPoolMux.Lock()
-
-		defer grpcPoolMux.Unlock()
-
-		grpcPool, ok = grpcPoolMap[dao.ServerName]
-
-		if !ok || grpcPool == nil {
-
+	if grpcConn == nil {
+		grpcMux.Lock()
+		defer grpcMux.Unlock()
+		if grpcConn == nil {
 			config, err := daoGRPCGetConfig(dao.ServerName)
 			if err != nil {
 				return nil, err
 			}
+			balancer := gogrpc.NewBalancerIp()
+			balancer.SetAddr(config.Address...)
 
-			pc := &pool.ObjectPoolConfig{
-				Lifo:               config.Lifo,
-				BlockWhenExhausted: config.BlockWhenExhausted,
-				MaxWaitMillis:      config.MaxWaitMillis,
-				MaxIdle:            config.MaxIdle,
-				MaxTotal:           config.MaxTotal,
-				TestOnBorrow:       config.TestOnBorrow,
-				TestOnCreate:       config.TestOnCreate,
-				TestOnReturn:       config.TestOnReturn,
-				MinIdle:            config.MinIdle}
+			var conn *grpc.ClientConn
+			dialOptions := append(dao.DialOptions, grpc.WithBalancer(balancer))
+			conn, err = grpc.Dial("test", dialOptions...)
 
-			factory := &DaoGRPCFactory{}
-			factory.Config = config
-			factory.DialOptions = dao.DialOptions
-			grpcPoolMap[dao.ServerName] = pool.NewObjectPool(factory, pc)
+			if err != nil {
+				return nil, err
+			}
+			grpcConn = conn
+		}
+	}
+	return grpcConn, nil
+	/*
+		if grpcPoolMap == nil {
+			grpcPoolMux.Lock()
+			if grpcPoolMap == nil {
+				grpcPoolMap = make(map[string]*pool.ObjectPool)
+			}
+			grpcPoolMux.Unlock()
+		}
+
+		grpcPool, ok := grpcPoolMap[dao.ServerName]
+
+		if !ok || grpcPool == nil {
+			grpcPoolMux.Lock()
+
+			defer grpcPoolMux.Unlock()
 
 			grpcPool, ok = grpcPoolMap[dao.ServerName]
 
 			if !ok || grpcPool == nil {
-				return nil, errors.New("create grpc pool failed:" + dao.ServerName)
+
+				config, err := daoGRPCGetConfig(dao.ServerName)
+				if err != nil {
+					return nil, err
+				}
+
+				pc := &pool.ObjectPoolConfig{
+					Lifo:               config.Lifo,
+					BlockWhenExhausted: config.BlockWhenExhausted,
+					MaxWaitMillis:      config.MaxWaitMillis,
+					MaxIdle:            config.MaxIdle,
+					MaxTotal:           config.MaxTotal,
+					TestOnBorrow:       config.TestOnBorrow,
+					TestOnCreate:       config.TestOnCreate,
+					TestOnReturn:       config.TestOnReturn,
+					MinIdle:            config.MinIdle}
+
+				factory := &DaoGRPCFactory{}
+				factory.Config = config
+				factory.DialOptions = dao.DialOptions
+				grpcPoolMap[dao.ServerName] = pool.NewObjectPool(factory, pc)
+
+				grpcPool, ok = grpcPoolMap[dao.ServerName]
+
+				if !ok || grpcPool == nil {
+					return nil, errors.New("create grpc pool failed:" + dao.ServerName)
+				}
+
 			}
-
 		}
-	}
-	conn, err := grpcPool.BorrowObject()
+		conn, err := grpcPool.BorrowObject()
 
-	if err != nil {
-		UtilLogErrorf("get grpc conn from pool  failed, server name :%s ,err:%s", dao.ServerName, err.Error())
-		return nil, err
-	}
-	//http2 共用同一链接，所以拿到即可还回
-	grpcPool.ReturnObject(conn)
+		if err != nil {
+			UtilLogErrorf("get grpc conn from pool  failed, server name :%s ,err:%s", dao.ServerName, err.Error())
+			return nil, err
+		}
+		//http2 共用同一链接，所以拿到即可还回
+		grpcPool.ReturnObject(conn)
 
-	if conn == nil {
-		UtilLogErrorf("get grpc conn from pool failed: conn is nil")
-		return nil, nil
-	}
+		if conn == nil {
+			UtilLogErrorf("get grpc conn from pool failed: conn is nil")
+			return nil, nil
+		}
 
-	grpcConn, ok := conn.(*grpc.ClientConn)
+		grpcConn, ok := conn.(*grpc.ClientConn)
 
-	if !ok {
-		errMsg := "get grpc conn from pool failed: convert client failed"
-		UtilLogError(errMsg)
+		if !ok {
+			errMsg := "get grpc conn from pool failed: convert client failed"
+			UtilLogError(errMsg)
 
-		return nil, errors.New(errMsg)
-	}
+			return nil, errors.New(errMsg)
+		}
 
-	return grpcConn, nil
+		return grpcConn, nil*/
 
 }
 
