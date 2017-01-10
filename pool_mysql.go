@@ -62,7 +62,7 @@ func initDb(connectionType int) (*gorm.DB, error) {
     resultDb, err := gorm.Open("mysql", address)
     if err != nil {
         UtilLogErrorf("connect mysql error: %s", err.Error())
-        return nil, err
+        return resultDb, err
     }
 
     resultDb.SingularTable(true)
