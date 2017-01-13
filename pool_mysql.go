@@ -74,11 +74,12 @@ func initDb(connectionType int) (*gorm.DB, error) {
     return resultDb, err
 }
 
-func (p *MysqlConnectionPool) Get(isRead bool) (MysqlConnection, error) {
+func (p *MysqlConnectionPool) Get(isRead bool) (c MysqlConnection, err error) {
     ctx := context.TODO()
     r, err := p.ResourcePool.Get(ctx)
     if err != nil {
         UtilLogErrorf("connect mysql pool get error: %s", err.Error())
+        return c, err
     }
     c, ok := r.(MysqlConnection)
     //判断conn是否正常
@@ -93,6 +94,7 @@ func (p *MysqlConnectionPool) Get(isRead bool) (MysqlConnection, error) {
         if err != nil {
             UtilLogErrorf("redo connect mysql error: %s", err.Error())
             p.Put(c)//放入失败的资源，保证下次重连
+            return c, err
         }
     }
     return c, err
