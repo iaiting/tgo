@@ -14,10 +14,8 @@ type DaoGRPC struct {
 }
 
 var (
-	//grpcPoolMap map[string]*pool.ObjectPool
-	//grpcPoolMux sync.Mutex
-	grpcConn *grpc.ClientConn
-	grpcMux  sync.Mutex
+	grpcConnMap map[string]*grpc.ClientConn
+	grpcConnMux sync.Mutex
 )
 
 func daoGRPCGetConfig(serverName string) (*ConfigPool, error) {
@@ -33,10 +31,25 @@ func daoGRPCGetConfig(serverName string) (*ConfigPool, error) {
 }
 
 func (dao *DaoGRPC) GetConn() (*grpc.ClientConn, error) {
-	if grpcConn == nil {
-		grpcMux.Lock()
-		defer grpcMux.Unlock()
-		if grpcConn == nil {
+
+	if grpcConnMap == nil {
+		grpcConnMux.Lock()
+		if grpcConnMap == nil {
+			grpcConnMap = make(map[string]*grpc.ClientConn)
+		}
+		grpcConnMux.Unlock()
+	}
+
+	grpcConn, ok := grpcConnMap[dao.ServerName]
+
+	if !ok || grpcConn == nil {
+		grpcConnMux.Lock()
+
+		defer grpcConnMux.Unlock()
+
+		grpcConn, ok = grpcConnMap[dao.ServerName]
+
+		if !ok || grpcConn == nil {
 			config, err := daoGRPCGetConfig(dao.ServerName)
 			if err != nil {
 				return nil, err
@@ -44,14 +57,13 @@ func (dao *DaoGRPC) GetConn() (*grpc.ClientConn, error) {
 			balancer := gogrpc.NewBalancerIp()
 			balancer.SetAddr(config.Address...)
 
-			var conn *grpc.ClientConn
 			dialOptions := append(dao.DialOptions, grpc.WithBalancer(balancer))
-			conn, err = grpc.Dial(dao.ServerName, dialOptions...)
+			grpcConn, err = grpc.Dial(dao.ServerName, dialOptions...)
 
 			if err != nil {
 				return nil, err
 			}
-			grpcConn = conn
+			grpcConnMap[dao.ServerName] = grpcConn
 		}
 	}
 	return grpcConn, nil
