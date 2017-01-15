@@ -46,7 +46,7 @@ func (dao *DaoGRPC) GetConn() (*grpc.ClientConn, error) {
 
 			var conn *grpc.ClientConn
 			dialOptions := append(dao.DialOptions, grpc.WithBalancer(balancer))
-			conn, err = grpc.Dial("test", dialOptions...)
+			conn, err = grpc.Dial(dao.ServerName, dialOptions...)
 
 			if err != nil {
 				return nil, err
