@@ -17,6 +17,9 @@ type DaoMongo struct {
 	AutoIncrementId bool
 
 	PrimaryKey string
+
+	Mode    string
+	Refresh bool
 }
 
 type DaoMongoCounter struct {
@@ -66,12 +69,14 @@ func (m *DaoMongo) GetSession() (*mgo.Session, string, error) {
 				err = m.processError(err, "connect to mongo server error:%s,%s", err.Error(), connectionString)
 				return nil, "", err
 			}
-			sessionMongo.SetPoolLimit(1000)
+			sessionMongo.SetPoolLimit(configMongo.PoolLimit)
 		}
 	}
 
 	if sessionMongo != nil {
-		return sessionMongo.Clone(), configMongo.DbName, nil
+		clone := sessionMongo.Clone()
+		m.SetMode(clone, configMongo.Read_option)
+		return clone, configMongo.DbName, nil
 	}
 
 	//session.SetSocketTimeout(time.Duration(configMongo.Timeout) * time.Millisecond)
@@ -88,6 +93,36 @@ func (m *DaoMongo) GetSession() (*mgo.Session, string, error) {
 	m.processError(errors.New("Mongo Error"), "session mongo is nul")
 	return nil, configMongo.DbName, errors.New("session mongo is nul")
 }
+
+func (m *DaoMongo) SetMode(session *mgo.Session, dft string) {
+	var mode mgo.Mode
+	modeStr := m.Mode
+	if modeStr == "" {
+		modeStr = dft
+	}
+
+	switch strings.ToUpper(modeStr) {
+	case "EVENTUAL":
+		mode = mgo.Eventual
+	case "MONOTONIC":
+		mode = mgo.Monotonic
+	case "PRIMARYPREFERRED":
+		mode = mgo.PrimaryPreferred
+	case "SECONDARY":
+		mode = mgo.Secondary
+	case "SECONDARYPREFERRED":
+		mode = mgo.SecondaryPreferred
+	case "NEAREST":
+		mode = mgo.Nearest
+	default:
+		mode = mgo.Strong
+	}
+
+	if session.Mode() != mode {
+		session.SetMode(mode, m.Refresh)
+	}
+}
+
 func (m *DaoMongo) GetId() (int64, error) {
 	return m.GetNextSequence()
 }
@@ -270,7 +305,7 @@ func (m *DaoMongo) Find(condition interface{}, limit int, skip int, data interfa
 	s := session.DB(dbName).C(m.CollectionName).Find(condition)
 
 	if len(sortFields) == 0 {
-		sortFields=append(sortFields,"-_id")
+		sortFields = append(sortFields, "-_id")
 	}
 	s = s.Sort(sortFields...)
 
@@ -323,55 +358,54 @@ func (m *DaoMongo) DistinctWithPage(condition interface{}, field string, limit i
 
 	defer session.Close()
 	/*
-	s := session.DB(dbName).C(m.CollectionName).Find(condition)
+		s := session.DB(dbName).C(m.CollectionName).Find(condition)
 
-	if len(sortFields) > 0 {
-		s = s.Sort(sortFields...)
-	}
+		if len(sortFields) > 0 {
+			s = s.Sort(sortFields...)
+		}
 
-	if skip > 0 {
-		s = s.Skip(skip)
-	}
+		if skip > 0 {
+			s = s.Skip(skip)
+		}
 
-	if limit > 0 {
-		s = s.Limit(limit)
-	}
+		if limit > 0 {
+			s = s.Limit(limit)
+		}
 
-	errDistinct := s.Distinct(field, data)
+		errDistinct := s.Distinct(field, data)
 	*/
 
 	var pipeSlice []bson.M
 
-	pipeSlice = append(pipeSlice,bson.M{"$match": condition})
+	pipeSlice = append(pipeSlice, bson.M{"$match": condition})
 
-	if sortFields!=nil&&len(sortFields) >0{
-		bmSort:= bson.M{}
+	if sortFields != nil && len(sortFields) > 0 {
+		bmSort := bson.M{}
 
-		for k,v := range sortFields{
+		for k, v := range sortFields {
 			var vInt int
-			if v{
-				vInt =1
-			}else{
+			if v {
+				vInt = 1
+			} else {
 				vInt = -1
 			}
 			bmSort[k] = vInt
 		}
 
-		pipeSlice = append(pipeSlice,bson.M{"$sort":bmSort})
+		pipeSlice = append(pipeSlice, bson.M{"$sort": bmSort})
 	}
 
-	if skip>0{
-		pipeSlice = append(pipeSlice,bson.M{"$skip":skip})
+	if skip > 0 {
+		pipeSlice = append(pipeSlice, bson.M{"$skip": skip})
 	}
 
-	if limit>0{
-		pipeSlice = append(pipeSlice,bson.M{"$limit":limit})
+	if limit > 0 {
+		pipeSlice = append(pipeSlice, bson.M{"$limit": limit})
 	}
 
+	pipeSlice = append(pipeSlice, bson.M{"$group": bson.M{"_id": fmt.Sprintf("$%s", field)}})
 
-	pipeSlice = append(pipeSlice,bson.M{"$group":bson.M{"_id":fmt.Sprintf("$%s", field)}})
-
-	pipeSlice = append(pipeSlice,bson.M{"$project":bson.M{field:"$_id"}})
+	pipeSlice = append(pipeSlice, bson.M{"$project": bson.M{field: "$_id"}})
 
 	coll := session.DB(dbName).C(m.CollectionName)
 
