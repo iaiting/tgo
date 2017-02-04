@@ -512,6 +512,33 @@ func (m *DaoMongo) Update(condition interface{}, data map[string]interface{}) er
 	return errUpdate
 }
 
+func (m *DaoMongo) Upsert(condition interface{}, data map[string]interface{}) (error) {
+	session, dbName, err := m.GetSession()
+
+	if err != nil {
+		return err
+	}
+
+	defer session.Close()
+
+	coll := session.DB(dbName).C(m.CollectionName)
+
+	setBson := bson.M{}
+	for key, value := range data {
+		setBson[fmt.Sprintf("%s", key)] = value
+	}
+
+	updateData := bson.M{"$inc": setBson, "$currentDate": bson.M{"updated_at": true}}
+
+	_,errUpsert := coll.Upsert(condition, updateData)
+
+	if errUpsert != nil {
+		errUpsert = m.processError(errUpsert, "mongo %s errUpsert failed: %s", m.CollectionName, errUpsert.Error())
+	}
+
+	return errUpsert
+}
+
 func (m *DaoMongo) RemoveId(id interface{}) error {
 	session, dbName, err := m.GetSession()
 
