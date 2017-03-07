@@ -51,6 +51,7 @@ func CreateMysqlConnectionWrite() (pools.Resource, error) {
 }
 
 func initDb(connectionType int) (*gorm.DB, error) {
+    dbConfigMux.Lock()
     config := NewConfigDb()
     var dbConfig *ConfigDbBase
     if connectionType == MYSQL_CONNECTION_TYPE_READ {
@@ -58,7 +59,9 @@ func initDb(connectionType int) (*gorm.DB, error) {
     } else {
         dbConfig = config.Mysql.GetWrite()
     }
-    address := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4,utf8&parseTime=True&loc=Local", dbConfig.User, dbConfig.Password, dbConfig.Address, dbConfig.Port, dbConfig.DbName)
+    address := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4,utf8&parseTime=True&loc=Local", dbConfig.User,
+        dbConfig.Password, dbConfig.Address, dbConfig.Port, dbConfig.DbName)
+    dbConfigMux.Unlock()
     resultDb, err := gorm.Open("mysql", address)
     if err != nil {
         UtilLogErrorf("connect mysql error: %s", err.Error())
@@ -74,11 +77,12 @@ func initDb(connectionType int) (*gorm.DB, error) {
     return resultDb, err
 }
 
-func (p *MysqlConnectionPool) Get(isRead bool) (MysqlConnection, error) {
+func (p *MysqlConnectionPool) Get(isRead bool) (c MysqlConnection, err error) {
     ctx := context.TODO()
     r, err := p.ResourcePool.Get(ctx)
     if err != nil {
         UtilLogErrorf("connect mysql pool get error: %s", err.Error())
+        return c, err
     }
     c, ok := r.(MysqlConnection)
     //判断conn是否正常
