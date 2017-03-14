@@ -3,8 +3,9 @@ package tgo
 import (
 	"encoding/json"
 	"net/http"
-
+	"github.com/tonyjt/gokids"
 	"github.com/gin-gonic/gin"
+	"time"
 )
 
 func UtilResponseReturnJsonNoP(c *gin.Context, code int, model interface{}) {
@@ -18,23 +19,27 @@ func UtilResponseReturnJson(c *gin.Context, code int, model interface{}) {
 }
 
 func UtilResponseReturnJsonWithMsg(c *gin.Context, code int, msg string, model interface{}, callbackFlag bool) {
-	var rj interface{}
+	var (
+		rj interface{}
+		result bool
+		callback string
+	)
 	if code == 0 {
 		code = 1001
 	}
 	//添加结果
 	if code == 1001 {
-		c.Set("result", true)
-	} else {
-		c.Set("result", false)
+		result = true
 	}
+	startTime, _ := c.Get(gokids.KMonitorStartTimeKey)
+	go monitorReport(c.Request.URL.Path, startTime, result)
+
 	rj = gin.H{
 		"code":    code,
 		"message": msg,
 		"data":    model,
 	}
 
-	var callback string
 	if callbackFlag {
 		callback = c.Query("callback")
 	}
@@ -61,4 +66,18 @@ func UtilResponseReturnJsonSuccess(c *gin.Context, data interface{}) {
 
 func UtilResponseRedirect(c *gin.Context, url string) {
 	c.Redirect(http.StatusMovedPermanently, url)
+}
+
+func monitorReport(key string, startTime interface{}, result bool) {
+	endTime := time.Now()
+	if startTime == nil {
+		UtilLogError("kmonitor start time is not exists")
+	} else {
+		startT := startTime.(time.Time)
+		subTime := endTime.Sub(startT)
+		err := gokids.KMonitorReport(key, "", result, subTime.Nanoseconds() / 1000000)
+		if err != nil {
+			UtilLogErrorf("kmonitor report error:%v", err.Error())
+		}
+	}
 }
