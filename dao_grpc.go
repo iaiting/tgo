@@ -15,7 +15,7 @@ type DaoGRPC struct {
 
 var (
 	grpcConnMap map[string]*grpc.ClientConn
-	grpcConnMux sync.Mutex
+	grpcConnMux sync.RWMutex
 )
 
 func daoGRPCGetConfig(serverName string) (*ConfigPool, error) {
