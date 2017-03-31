@@ -131,18 +131,25 @@ func (d *DaoMysql) Insert(model interface{}) error {
 	return errInsert
 }
 
-func (d *DaoMysql) Select(condition string, data interface{}, field ...[]string) error {
-	orm, err := d.GetReadOrm()
+func (p *DaoMysql) Select(condition string, data interface{}, field ...[]string) error {
+	orm, err := p.GetReadOrm()
 	if err != nil {
 		return err
 	}
 	defer orm.Put()
+
+	return p.SelectWithConn(&orm,condition,data,field...)
+
+}
+// SelectWithConn SelectWithConn 事务的时候使用
+func (p *DaoMysql) SelectWithConn(orm *MysqlConnection,condition string, data interface{}, field ...[]string) error {
 	var errFind error
 	if len(field) == 0 {
-		errFind = orm.Table(d.TableName).Where(condition).Find(data).Error
+		errFind = orm.Table(p.TableName).Where(condition).Find(data).Error
 	} else {
-		errFind = orm.Table(d.TableName).Where(condition).Select(field[0]).Find(data).Error
+		errFind = orm.Table(p.TableName).Where(condition).Select(field[0]).Find(data).Error
 	}
 
 	return errFind
 }
+

@@ -512,7 +512,7 @@ func (m *DaoMongo) Update(condition interface{}, data map[string]interface{}) er
 	return errUpdate
 }
 
-func (m *DaoMongo) Upsert(condition interface{}, data map[string]interface{}) (error) {
+func (m *DaoMongo) Upsert(condition interface{}, data map[string]interface{}) error {
 	session, dbName, err := m.GetSession()
 
 	if err != nil {
@@ -530,7 +530,7 @@ func (m *DaoMongo) Upsert(condition interface{}, data map[string]interface{}) (e
 
 	updateData := bson.M{"$inc": setBson, "$currentDate": bson.M{"updated_at": true}}
 
-	_,errUpsert := coll.Upsert(condition, updateData)
+	_, errUpsert := coll.Upsert(condition, updateData)
 
 	if errUpsert != nil {
 		errUpsert = m.processError(errUpsert, "mongo %s errUpsert failed: %s", m.CollectionName, errUpsert.Error())

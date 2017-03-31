@@ -569,6 +569,13 @@ func (b *DaoRedis) Set(key string, value interface{}) bool {
 	return true
 }
 
+//
+func (b *DaoRedis) SetE(key string, value interface{}) error {
+	_, err := b.doSet("SET", key, value, 0)
+
+	return err
+}
+
 //MSet mset
 func (b *DaoRedis) MSet(datas map[string]interface{}) bool {
 	_, err := b.doMSet("MSET", "", datas)
@@ -587,6 +594,14 @@ func (b *DaoRedis) SetEx(key string, value interface{}, expire int) bool {
 		return false
 	}
 	return true
+}
+
+//SetEx setex
+func (b *DaoRedis) SetExE(key string, value interface{}, expire int) error {
+
+	_, err := b.doSet("SET", key, value, expire)
+
+	return err
 }
 
 //Expire expire
