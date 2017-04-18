@@ -138,11 +138,12 @@ func (p *DaoMysql) Select(condition string, data interface{}, field ...[]string)
 	}
 	defer orm.Put()
 
-	return p.SelectWithConn(&orm,condition,data,field...)
+	return p.SelectWithConn(&orm, condition, data, field...)
 
 }
+
 // SelectWithConn SelectWithConn 事务的时候使用
-func (p *DaoMysql) SelectWithConn(orm *MysqlConnection,condition string, data interface{}, field ...[]string) error {
+func (p *DaoMysql) SelectWithConn(orm *MysqlConnection, condition string, data interface{}, field ...[]string) error {
 	var errFind error
 	if len(field) == 0 {
 		errFind = orm.Table(p.TableName).Where(condition).Find(data).Error
@@ -152,4 +153,3 @@ func (p *DaoMysql) SelectWithConn(orm *MysqlConnection,condition string, data in
 
 	return errFind
 }
-

@@ -16,39 +16,39 @@ import (
 )
 
 type DaoRedis struct {
-	KeyName string
-    Persistent bool // 持久化key
+	KeyName    string
+	Persistent bool // 持久化key
 }
 
 type redisPool struct {
-    redisPool    *pools.ResourcePool
-    redisPoolMux sync.Mutex
-    redisPPool    *pools.ResourcePool // 持久化Pool
-    redisPPoolMux sync.Mutex
+	redisPool     *pools.ResourcePool
+	redisPoolMux  sync.Mutex
+	redisPPool    *pools.ResourcePool // 持久化Pool
+	redisPPoolMux sync.Mutex
 }
 
 func (p *redisPool) Get(persistent bool) (*pools.ResourcePool, sync.Mutex) {
-    if persistent{
-        return p.redisPPool, p.redisPPoolMux
-    } else {
-        return p.redisPool,p.redisPoolMux
-    }
+	if persistent {
+		return p.redisPPool, p.redisPPoolMux
+	} else {
+		return p.redisPool, p.redisPoolMux
+	}
 }
 
 func (p *redisPool) Set(pool *pools.ResourcePool, persistent bool) {
-    if persistent{
-        p.redisPPool = pool
-    } else {
-        p.redisPool = pool
-    }
+	if persistent {
+		p.redisPPool = pool
+	} else {
+		p.redisPool = pool
+	}
 }
 
 func (p *redisPool) Put(resource pools.Resource, persistent bool) {
-    if persistent{
-        p.redisPPool.Put(resource)
-    } else {
-        p.redisPool.Put(resource)
-    }
+	if persistent {
+		p.redisPPool.Put(resource)
+	} else {
+		p.redisPool.Put(resource)
+	}
 }
 
 var daoPool redisPool
@@ -106,10 +106,10 @@ func (b *DaoRedis) dial(fromIndex int) (redis.Conn, int, error) {
 }
 func (b *DaoRedis) InitRedisPool() (pools.Resource, error) {
 
-    var poolHandler *pools.ResourcePool
-    var poolMux sync.Mutex
+	var poolHandler *pools.ResourcePool
+	var poolMux sync.Mutex
 
-    poolHandler, poolMux = daoPool.Get(b.Persistent)
+	poolHandler, poolMux = daoPool.Get(b.Persistent)
 
 	if poolHandler == nil || poolHandler.IsClosed() {
 
@@ -125,12 +125,12 @@ func (b *DaoRedis) InitRedisPool() (pools.Resource, error) {
 				cacheConfig.PoolMinActive = 1
 			}
 
-            poolHandler = pools.NewResourcePool(func() (pools.Resource, error) {
+			poolHandler = pools.NewResourcePool(func() (pools.Resource, error) {
 				c, serverIndex, err := b.dial(0)
 				return ResourceConn{Conn: c, serverIndex: serverIndex}, err
 			}, cacheConfig.PoolMinActive, cacheConfig.PoolMaxActive, time.Duration(cacheConfig.PoolIdleTimeout)*time.Millisecond)
 
-            daoPool.Set(poolHandler, b.Persistent)
+			daoPool.Set(poolHandler, b.Persistent)
 
 		}
 	}
@@ -157,7 +157,7 @@ func (b *DaoRedis) InitRedisPool() (pools.Resource, error) {
 				var serverIndex int
 				conn, serverIndex, err = b.dial(rc.serverIndex + 1)
 				if err != nil {
-                    poolHandler.Put(r)
+					poolHandler.Put(r)
 					UtilLogErrorf("redis redail connection err:%s", err.Error())
 					return nil, err
 				} else {
@@ -168,7 +168,6 @@ func (b *DaoRedis) InitRedisPool() (pools.Resource, error) {
 
 		return r, err
 	}
-
 
 	UtilLogError("redis pool is null")
 
@@ -641,7 +640,7 @@ func (b *DaoRedis) GetE(key string, data interface{}) error {
 // 返回 1. key是否存在 2. error
 func (b *DaoRedis) GetRaw(key string, data interface{}) (bool, error) {
 
-    return b.doGet("GET", key, data)
+	return b.doGet("GET", key, data)
 }
 
 func (b *DaoRedis) MGet(keys []string, data interface{}) error {
@@ -725,7 +724,7 @@ func (b *DaoRedis) HGetE(key string, field string, value interface{}) error {
 
 //HGetRaw 返回 1. key是否存在 2. error
 func (b *DaoRedis) HGetRaw(key string, field string, value interface{}) (bool, error) {
-    return b.doGet("HGET", key, value, field)
+	return b.doGet("HGET", key, value, field)
 }
 
 func (b *DaoRedis) HMGet(key string, fields []interface{}, data interface{}) error {
@@ -763,6 +762,12 @@ func (b *DaoRedis) HMSet(key string, value map[string]interface{}) bool {
 		return false
 	}
 	return true
+}
+
+//HMSetE value是filed:data
+func (b *DaoRedis) HMSetE(key string, value map[string]interface{}) error {
+	_, err := b.doMSet("HMSet", key, value)
+	return err
 }
 
 func (b *DaoRedis) HLen(key string, data *int) bool {
@@ -903,7 +908,7 @@ func (b *DaoRedis) LRange(key string, start int, end int, value interface{}) boo
 	}
 }
 
-func (b *DaoRedis) LLen(key string) (int64,error) {
+func (b *DaoRedis) LLen(key string) (int64, error) {
 	cmd := "LLEN"
 
 	redisResource, err := b.InitRedisPool()
@@ -936,7 +941,7 @@ func (b *DaoRedis) LLen(key string) (int64,error) {
 
 	num, ok := result.(int64)
 	if !ok {
-		return 0,errors.New("result to int64 failed")
+		return 0, errors.New("result to int64 failed")
 	}
 
 	return num, nil
