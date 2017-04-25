@@ -125,7 +125,7 @@ func ConfigEnvGet() string {
 func ConfigEnvIsDev() bool {
 	env := ConfigEnvGet()
 
-	if env == "dev" {
+	if env == "dev" || env =="debug" {
 		return true
 	}
 	return false
