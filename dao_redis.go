@@ -727,19 +727,6 @@ func (b *DaoRedis) HMGet(key string, fields []interface{}, data interface{}) err
 	return err
 }
 
-// HGetAll 根据key获取所有的hash数据
-func (b *DaoRedis) HGetAll(key string, data interface{}) bool {
-
-	var args []interface{}
-	args = append(args, key)
-	err := b.doMGet("HGETALL", args, data)
-
-	if err != nil {
-		return false
-	}
-	return true
-}
-
 func (b *DaoRedis) HSet(key string, field string, value interface{}) bool {
 
 	_, err := b.doSet("HSET", key, value, 0, field)
