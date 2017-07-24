@@ -1080,3 +1080,73 @@ func (b *DaoRedis) pipeDoGet(cmd string, args [][]interface{}, value []interface
 }
 
 //pipeline end
+
+// Set集合Start
+func (b *DaoRedis) SAdd(key string, argPs []interface{}) bool {
+	redisResource, err := b.InitRedisPool()
+
+	if err != nil {
+		return false
+	}
+	defer daoPool.Put(redisResource, b.Persistent)
+
+	args:=make([]interface{},len(argPs)+1)
+	args[0] = b.getKey(key)
+	copy(args[1:], argPs)
+
+	redisClient := redisResource.(ResourceConn)
+
+	_, errDo := redisClient.Do("SADD", args...)
+
+	if errDo != nil {
+		UtilLogErrorf("run redis SADD command failed: error:%s,key:%s,args:%v", errDo.Error(), key, args)
+		return false
+	}
+	return true
+}
+
+func (b *DaoRedis) SIsMember(key string, arg interface{}) bool {
+	redisResource, err := b.InitRedisPool()
+
+	if err != nil {
+		return false
+	}
+	defer daoPool.Put(redisResource, b.Persistent)
+
+	key = b.getKey(key)
+
+	redisClient := redisResource.(ResourceConn)
+	reply, errDo := redisClient.Do("SISMEMBER", key, arg)
+
+	if errDo != nil {
+		UtilLogErrorf("run redis SISMEMBER command failed: error:%s,key:%s,member:%s", errDo.Error(), key, arg)
+		return false
+	}
+	if code,ok:=reply.(int64);ok&&code==int64(1){
+		return true
+	}
+	return false
+}
+
+func (b *DaoRedis) SRem(key string, argPs []interface{}) bool {
+	redisResource, err := b.InitRedisPool()
+
+	if err != nil {
+		return false
+	}
+	defer daoPool.Put(redisResource, b.Persistent)
+
+	args:=make([]interface{},len(argPs)+1)
+	args[0] = b.getKey(key)
+	copy(args[1:], argPs)
+
+	redisClient := redisResource.(ResourceConn)
+
+	_, errDo := redisClient.Do("SREM", args...)
+
+	if errDo != nil {
+		UtilLogErrorf("run redis SREM command failed: error:%s,key:%s,member:%s", errDo.Error(), key, args)
+		return false
+	}
+	return true
+}
