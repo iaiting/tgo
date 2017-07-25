@@ -372,6 +372,18 @@ func (b *DaoRedis) doGet(cmd string, key string, value interface{}, fields ...st
 
 	if errorJson != nil {
 
+		if reflect.TypeOf(value).Kind() == reflect.Ptr && reflect.TypeOf(value).Elem().Kind() == reflect.String {
+			var strValue string
+			strValue = string(result.([]byte))
+
+			v := value.(*string)
+
+			*v = strValue
+
+			value = v
+
+			return true, nil
+		}
 		UtilLogErrorf("get %s command result failed:%s", cmd, errorJson.Error())
 
 		return false, errorJson
@@ -1110,7 +1122,7 @@ func (b *DaoRedis) SAdd(key string, argPs []interface{}) bool {
 	}
 	defer daoPool.Put(redisResource, b.Persistent)
 
-	args:=make([]interface{},len(argPs)+1)
+	args := make([]interface{}, len(argPs)+1)
 	args[0] = b.getKey(key)
 	copy(args[1:], argPs)
 
@@ -1142,7 +1154,7 @@ func (b *DaoRedis) SIsMember(key string, arg interface{}) bool {
 		UtilLogErrorf("run redis SISMEMBER command failed: error:%s,key:%s,member:%s", errDo.Error(), key, arg)
 		return false
 	}
-	if code,ok:=reply.(int64);ok&&code==int64(1){
+	if code, ok := reply.(int64); ok && code == int64(1) {
 		return true
 	}
 	return false
@@ -1156,7 +1168,7 @@ func (b *DaoRedis) SRem(key string, argPs []interface{}) bool {
 	}
 	defer daoPool.Put(redisResource, b.Persistent)
 
-	args:=make([]interface{},len(argPs)+1)
+	args := make([]interface{}, len(argPs)+1)
 	args[0] = b.getKey(key)
 	copy(args[1:], argPs)
 

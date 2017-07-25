@@ -1,6 +1,7 @@
 package tgo
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 )
@@ -12,7 +13,7 @@ type ModelRedisHello struct {
 func Test_Redis_Set(t *testing.T) {
 	redis := NewRedisTest()
 
-	redis.Set("tonyjt", "12345678")
+	redis.Set("tonyjt", "s:35:\"h5_9989f070d21dc983cc7bbc5c6a013080\";")
 
 	var data string
 	result := redis.Get("tonyjt", &data)
@@ -20,6 +21,19 @@ func Test_Redis_Set(t *testing.T) {
 	if !result {
 		t.Error("result false")
 	}
+	fmt.Println(data)
+}
+
+func Test_Redis_Get(t *testing.T) {
+	redis := NewRedisTest()
+
+	var data string
+	result := redis.Get("h5_2", &data)
+
+	if !result {
+		t.Error("result false")
+	}
+	fmt.Println(data)
 }
 
 func Test_Redis_SetEx(t *testing.T) {
