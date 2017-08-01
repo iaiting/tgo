@@ -35,6 +35,10 @@ var (
 )
 
 func init() {
+	//初始化mysql集群
+	if ConfigMysqlClusterGetDbCount() > 0 {
+		initCluster()
+	}
 	config := NewConfigDb()
 	configPool := config.Mysql.GetPool()
 	poolTicker := time.NewTicker(time.Second * 60)
