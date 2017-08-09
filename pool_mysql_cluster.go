@@ -12,9 +12,9 @@ func MakeMysqlConnection(isRead bool, selector int) (MysqlConnection, error) {
 	)
 	mysqlConfig := ConfigMysqlClusterGetOne(selector)
 	if isRead {
-		dbConfig = mysqlConfig.GetRead()
+		dbConfig = mysqlConfig.GetClusterRead()
 	} else {
-		dbConfig = mysqlConfig.GetWrite()
+		dbConfig = mysqlConfig.GetClusterWrite()
 	}
 	address := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4,utf8&parseTime=True&loc=Local", dbConfig.User, dbConfig.Password, dbConfig.Address, dbConfig.Port, dbConfig.DbName)
 	resultDb, err := gorm.Open("mysql", address)
@@ -39,11 +39,9 @@ func (p *MysqlConnectionPool) GetMysqlConnectionFromPool(isRead bool, selector i
 		UtilLogErrorf("connect mysql pool get error: %s", err.Error())
 	}
 	c, ok := r.(MysqlConnection)
-	//fmt.Printf("p:%+v", p.ResourcePool)
 	//判断conn是否正常
 	if !ok || c.DB == nil {
 		c, err := MakeMysqlConnection(isRead, selector)
-		//fmt.Println(c.DB)
 		if err != nil {
 			UtilLogErrorf("redo connect mysql error: %s", err.Error())
 			p.Put(c) //放入失败的资源，保证下次重连

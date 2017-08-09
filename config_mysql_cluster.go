@@ -1,7 +1,9 @@
 package tgo
 
 import (
+	"math/rand"
 	"sync"
+	"time"
 )
 
 var (
@@ -57,4 +59,28 @@ func configMysqlClusterInit() {
 		defaultMysqlClusterConfig := configMysqlClusterGetDefault()
 		configGet("mysql_cluster", mysqlClusterConfig, defaultMysqlClusterConfig)
 	}
+}
+
+func (m *ConfigMysql) GetClusterPool() *ConfigDbPool {
+	return &m.Pool
+}
+
+func (m *ConfigMysql) GetClusterWrite() (config *ConfigDbBase) {
+	config = &m.Write
+	config.DbName = m.DbName
+	return
+}
+
+func (m *ConfigMysql) GetClusterRead() (config *ConfigDbBase) {
+	readConfigs := m.Reads
+	count := len(readConfigs)
+	i := 0
+	if count > 1 {
+		rand.Seed(time.Now().UnixNano())
+		i = rand.Intn(count - 1)
+	}
+	config = &readConfigs[i]
+	config.DbName = m.DbName
+
+	return
 }

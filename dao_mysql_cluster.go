@@ -26,42 +26,64 @@ func NewDaoMysqlCluster() *DaoMysqlCluster {
 }
 
 func initCluster() {
-	//fmt.Println("dao_mysql_cluster")
-	if ConfigMysqlClusterGetDbCount() > 0 {
-		configMysqlClusterInit()
-		poolTicker := time.NewTicker(time.Second * 60)
-		MysqlClusterReadPool = make(map[int]*MysqlConnectionPool)
-		MysqlClusterWritePool = make(map[int]*MysqlConnectionPool)
+	configMysqlClusterInit()
+	poolTicker := time.NewTicker(time.Second * 60)
+	MysqlClusterReadPool = make(map[int]*MysqlConnectionPool)
+	MysqlClusterWritePool = make(map[int]*MysqlConnectionPool)
 
-		for selector, mysqlConfig := range mysqlClusterConfig.MysqlCluster {
-			//fmt.Printf("db:%d\n", selector)
-			initMysqlClusterPool(true, selector)
-			go monitorPool(mysqlConfig.GetPool(), poolTicker, true, MysqlClusterReadPool[selector])
+	for selector, mysqlConfig := range mysqlClusterConfig.MysqlCluster {
+		initMysqlClusterPool(true, selector)
+		go monitorClusterPool(mysqlConfig.GetClusterPool(), poolTicker, MysqlClusterReadPool[selector])
+		initMysqlClusterPool(false, selector)
+		go monitorClusterPool(mysqlConfig.GetClusterPool(), poolTicker, MysqlClusterWritePool[selector])
+	}
+}
 
-			initMysqlClusterPool(false, selector)
-			go monitorPool(mysqlConfig.GetPool(), poolTicker, false, MysqlClusterWritePool[selector])
+func monitorClusterPool(configPool *ConfigDbPool, poolTicker *time.Ticker, mysqlPool *MysqlConnectionPool) {
+	var (
+		caps         int
+		poolCaps     int
+		oldWaitCount int64
+		waitCount    int64
+	)
+	for {
+		waitCount = mysqlPool.WaitCount() - oldWaitCount
+		oldWaitCount = mysqlPool.WaitCount()
+		poolCaps = int(mysqlPool.Capacity())
+		if waitCount >= configPool.PoolWaitCount && poolCaps != configPool.PoolMaxCap { //定时循环内超出多少等待数目
+			caps = poolCaps + configPool.PoolExCap
+		} else if waitCount == 0 && poolCaps != configPool.PoolMinCap { //闲时减少池子容量
+			caps = poolCaps - configPool.PoolExCap
+		} else {
+			<-poolTicker.C
+			continue
 		}
+		if caps < configPool.PoolMinCap {
+			caps = configPool.PoolMinCap
+		}
+		if caps > configPool.PoolMaxCap {
+			caps = configPool.PoolMaxCap
+		}
+		mysqlPool.SetCapacity(caps)
+		<-poolTicker.C
 	}
 }
 
 func initMysqlClusterPool(isRead bool, selector int) *MysqlConnectionPool {
 	mysqlConfig := ConfigMysqlClusterGetOne(selector)
-	configPool := mysqlConfig.GetPool()
+
+	configPool := mysqlConfig.GetClusterPool()
 	mysqlConnectionFactory := func() (pools.Resource, error) {
 		return MakeMysqlConnection(isRead, selector)
 	}
 	if isRead {
 		if MysqlClusterReadPool[selector] == nil || MysqlClusterReadPool[selector].IsClosed() {
-			//fmt.Println("reader")
-			//fmt.Printf("selector:%d\n", selector)
 			mysqlClusterReadPoolMux.Lock()
 			defer mysqlClusterReadPoolMux.Unlock()
 
 			MysqlClusterReadPool[selector] = NewMysqlConnectionPool(mysqlConnectionFactory, configPool.PoolMinCap,
 				configPool.PoolMaxCap, configPool.PoolIdleTimeout*time.Millisecond)
 		}
-
-		//fmt.Printf("MysqlClusterReadPool:%+v\n", MysqlClusterReadPool[selector].ResourcePool)
 		return MysqlClusterReadPool[selector]
 	} else {
 		if MysqlClusterWritePool[selector] == nil || MysqlClusterWritePool[selector].IsClosed() {
@@ -101,11 +123,8 @@ func (d *DaoMysqlCluster) Insert(model interface{}) error {
 		return err
 	}
 	defer orm.PutCluster(d)
-	//fmt.Println(orm)
-	//return nil
 	errInsert := orm.Table(d.TableName).Create(model).Error
 	if errInsert != nil {
-		//记录
 		UtilLogError(fmt.Sprintf("insert into table:%s error:%s, data:%+v", d.TableName, errInsert.Error(), model))
 	}
 
@@ -120,7 +139,6 @@ func (d *DaoMysqlCluster) Update(condition string, sets map[string]interface{}) 
 	defer orm.PutCluster(d)
 	errInsert := orm.Table(d.TableName).Where(condition).Updates(sets).Error
 	if errInsert != nil {
-		//记录
 		UtilLogError(fmt.Sprintf("update table:%s error:%s, condition:%s, sets:%+v", d.TableName, errInsert.Error(), condition, sets))
 	}
 
@@ -135,7 +153,6 @@ func (d *DaoMysqlCluster) Remove(condition string) error {
 	defer orm.PutCluster(d)
 	errInsert := orm.Table(d.TableName).Where(condition).Delete(nil).Error
 	if errInsert != nil {
-		//记录
 		UtilLogError(fmt.Sprintf("remove from table:%s error:%s, condition:%s", d.TableName, errInsert.Error(), condition))
 	}
 
@@ -174,7 +191,6 @@ func (d *DaoMysqlCluster) First(condition string, data interface{}) error {
 	}
 	defer orm.PutCluster(d)
 	db := orm.Table(d.TableName).Where(condition)
-
 	errFind := db.First(data).Error
 
 	return errFind
@@ -189,7 +205,6 @@ func (d *DaoMysqlCluster) Count(condition string, data interface{}) error {
 
 	errInsert := orm.Table(d.TableName).Where(condition).Count(data).Error
 	if errInsert != nil {
-		//记录
 		UtilLogError(fmt.Sprintf("table:%s count error:%s, condition:%s", d.TableName, errInsert.Error(), condition))
 	}
 
