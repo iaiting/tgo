@@ -372,6 +372,18 @@ func (b *DaoRedis) doGet(cmd string, key string, value interface{}, fields ...st
 
 	if errorJson != nil {
 
+		if reflect.TypeOf(value).Kind() == reflect.Ptr && reflect.TypeOf(value).Elem().Kind() == reflect.String {
+			var strValue string
+			strValue = string(result.([]byte))
+
+			v := value.(*string)
+
+			*v = strValue
+
+			value = v
+
+			return true, nil
+		}
 		UtilLogErrorf("get %s command result failed:%s", cmd, errorJson.Error())
 
 		return false, errorJson
@@ -568,6 +580,13 @@ func (b *DaoRedis) Set(key string, value interface{}) bool {
 	return true
 }
 
+//
+func (b *DaoRedis) SetE(key string, value interface{}) error {
+	_, err := b.doSet("SET", key, value, 0)
+
+	return err
+}
+
 //MSet mset
 func (b *DaoRedis) MSet(datas map[string]interface{}) bool {
 	_, err := b.doMSet("MSET", "", datas)
@@ -586,6 +605,14 @@ func (b *DaoRedis) SetEx(key string, value interface{}, expire int) bool {
 		return false
 	}
 	return true
+}
+
+//SetEx setex
+func (b *DaoRedis) SetExE(key string, value interface{}, expire int) error {
+
+	_, err := b.doSet("SET", key, value, expire)
+
+	return err
 }
 
 //Expire expire
@@ -747,6 +774,12 @@ func (b *DaoRedis) HMSet(key string, value map[string]interface{}) bool {
 		return false
 	}
 	return true
+}
+
+//HMSetE value是filed:data
+func (b *DaoRedis) HMSetE(key string, value map[string]interface{}) error {
+	_, err := b.doMSet("HMSet", key, value)
+	return err
 }
 
 func (b *DaoRedis) HLen(key string, data *int) bool {

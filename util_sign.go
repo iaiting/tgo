@@ -4,6 +4,7 @@ package tgo
 
 import (
 	"github.com/gin-gonic/gin"
+	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
@@ -33,12 +34,12 @@ func UtilSignCheckSign(c *gin.Context) bool {
 	}
 	SignAppSecretKey = ConfigAppGetString("AppSecretKey", "")
 	ps := UtilRequestGetAllParams(c)
-	if !utilSignCheckSignTimestamp(c) {
+	if !UtilSignCheckSignTimestamp(c.Request) {
 		return false
 	}
 	signTimestamp, _ := c.Cookie("signtimestamp")
 	ps["signtimestamp"] = []string{signTimestamp}
-	sortedParams := utilSignGetSortUpParamsString(ps)
+	sortedParams := UtilSignGetSortUpParamsString(ps)
 	signString := SignAppSecretKey + sortedParams + SignAppSecretKey
 	signature := UtilCryptoSha1(signString)
 	signCookie, _ := c.Cookie("signature")
@@ -51,7 +52,7 @@ func UtilSignCheckSign(c *gin.Context) bool {
 }
 
 //升序排序的参数拼接的字符串
-func utilSignGetSortUpParamsString(ps url.Values) string {
+func UtilSignGetSortUpParamsString(ps url.Values) string {
 	psKey := []string{}
 	for k, _ := range ps {
 		psKey = append(psKey, k)
@@ -64,13 +65,21 @@ func utilSignGetSortUpParamsString(ps url.Values) string {
 	return strings.Join(ret, "&")
 }
 
-func utilSignCheckSignTimestamp(c *gin.Context) bool {
+func UtilSignCheckSignTimestamp(req *http.Request) bool {
 	appLimitTime, _ := strconv.Atoi(ConfigAppGetString("AppAccessLimitTime", ""))
 	if appLimitTime == 0 {
 		return true
 	}
-	cookie, _ := c.Cookie("signtimestamp")
-	signTimestamp, _ := strconv.Atoi(cookie)
+	ts, err := req.Cookie("signtimestamp")
+
+	if err != nil {
+		return false
+	}
+	signTimestamp, err := strconv.Atoi(ts.Value)
+
+	if err != nil {
+		return false
+	}
 	now := time.Now().Unix()
 	if now < int64(appLimitTime+signTimestamp) {
 		return true
