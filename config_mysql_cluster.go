@@ -6,7 +6,7 @@ import (
 
 var (
 	mysqlClusterConfig    *ConfigMysqlCluster
-	mysqlClusterConfigMux *sync.Mutex
+	mysqlClusterConfigMux sync.Mutex
 )
 
 type ConfigMysqlCluster struct {

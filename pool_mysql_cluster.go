@@ -6,7 +6,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func MakeMysqlConnection(isRead bool, selector int) (*MysqlConnection, error) {
+func MakeMysqlConnection(isRead bool, selector int) (MysqlConnection, error) {
 	var (
 		dbConfig *ConfigDbBase
 	)
@@ -20,7 +20,7 @@ func MakeMysqlConnection(isRead bool, selector int) (*MysqlConnection, error) {
 	resultDb, err := gorm.Open("mysql", address)
 	if err != nil {
 		UtilLogErrorf("connect mysql error: %s", err.Error())
-		return nil, err
+		return MysqlConnection{}, err
 	}
 
 	resultDb.SingularTable(true)
@@ -28,19 +28,22 @@ func MakeMysqlConnection(isRead bool, selector int) (*MysqlConnection, error) {
 		resultDb.LogMode(true)
 	}
 
-	return &MysqlConnection{resultDb, isRead}, err
+	return MysqlConnection{resultDb, isRead}, err
 }
 
 func (p *MysqlConnectionPool) GetMysqlConnectionFromPool(isRead bool, selector int) (MysqlConnection, error) {
 	ctx := context.TODO()
 	r, err := p.ResourcePool.Get(ctx)
+
 	if err != nil {
 		UtilLogErrorf("connect mysql pool get error: %s", err.Error())
 	}
 	c, ok := r.(MysqlConnection)
+	//fmt.Printf("p:%+v", p.ResourcePool)
 	//判断conn是否正常
 	if !ok || c.DB == nil {
 		c, err := MakeMysqlConnection(isRead, selector)
+		//fmt.Println(c.DB)
 		if err != nil {
 			UtilLogErrorf("redo connect mysql error: %s", err.Error())
 			p.Put(c) //放入失败的资源，保证下次重连

@@ -38,15 +38,16 @@ func init() {
 	//初始化mysql集群
 	if ConfigMysqlClusterGetDbCount() > 0 {
 		initCluster()
+	} else {
+		config := NewConfigDb()
+		configPool := config.Mysql.GetPool()
+		poolTicker := time.NewTicker(time.Second * 60)
+
+		//todo 优化动态控制池子大小
+
+		go monitorPool(configPool, poolTicker, true, MysqlReadPool)
+		go monitorPool(configPool, poolTicker, false, MysqlWritePool)
 	}
-	config := NewConfigDb()
-	configPool := config.Mysql.GetPool()
-	poolTicker := time.NewTicker(time.Second * 60)
-
-	//todo 优化动态控制池子大小
-
-	go monitorPool(configPool, poolTicker, true, MysqlReadPool)
-	go monitorPool(configPool, poolTicker, false, MysqlWritePool)
 }
 
 func monitorPool(configPool *ConfigDbPool, poolTicker *time.Ticker, isRead bool, mysqlPool *MysqlConnectionPool) {
