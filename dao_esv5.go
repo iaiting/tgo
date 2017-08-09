@@ -1,12 +1,12 @@
 package tgo
 
 import (
-	"net/http"
-	"time"
-	"gopkg.in/olivere/elastic.v5"
 	"context"
 	"github.com/jolestar/go-commons-pool"
+	"gopkg.in/olivere/elastic.v5"
+	"net/http"
 	"sync"
+	"time"
 )
 
 type DaoESV5 struct {

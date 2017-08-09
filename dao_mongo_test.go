@@ -1,8 +1,8 @@
 package tgo
 
 import (
-	"testing"
 	"gopkg.in/mgo.v2/bson"
+	"testing"
 )
 
 type ModelMongoHello struct {
@@ -40,52 +40,52 @@ func Test_MongoDistinct(t *testing.T) {
 
 	var modelList []string
 
-	condition :=bson.M{}
-	field:="name"
-	err:=mongo.DaoMongo.Distinct(condition, field, &modelList)
-	if err!=nil{
-		t.Errorf("distinct error:%s",err.Error())
-	}else{
-		t.Errorf("data is %v",modelList)
+	condition := bson.M{}
+	field := "name"
+	err := mongo.DaoMongo.Distinct(condition, field, &modelList)
+	if err != nil {
+		t.Errorf("distinct error:%s", err.Error())
+	} else {
+		t.Errorf("data is %v", modelList)
 	}
 }
 
 func Test_MongoDistinctPage(t *testing.T) {
 	mongo := NewMongoTest()
 
-	type dd struct{
+	type dd struct {
 		Name string
 	}
 
 	var modelList []dd
 
-	condition :=bson.M{}
-	field:="name"
+	condition := bson.M{}
+	field := "name"
 	skip := 0
-	limit:=1
+	limit := 1
 	sortFields := make(map[string]bool)
-	sortFields["name"]= true
-	err:=mongo.DaoMongo.DistinctWithPage(condition, field,limit,skip,&modelList,sortFields)
-	if err!=nil{
-		t.Errorf("distinct error:%s",err.Error())
-	}else{
-		t.Errorf("data is %v",modelList)
+	sortFields["name"] = true
+	err := mongo.DaoMongo.DistinctWithPage(condition, field, limit, skip, &modelList, sortFields)
+	if err != nil {
+		t.Errorf("distinct error:%s", err.Error())
+	} else {
+		t.Errorf("data is %v", modelList)
 	}
 }
 
-func Test_MongoFind(t *testing.T){
+func Test_MongoFind(t *testing.T) {
 	mongo := NewMongoTest()
-	condition :=bson.M{}
-	limit:=0
-	skip:=0
+	condition := bson.M{}
+	limit := 0
+	skip := 0
 	var sortFileds []string
 	var data []ModelMongoHello
 
-	err:=mongo.DaoMongo.Find(condition,limit,skip,&data,sortFileds...)
+	err := mongo.DaoMongo.Find(condition, limit, skip, &data, sortFileds...)
 
-	if err!=nil{
-		t.Errorf("mogno find error,%s",err.Error())
-	}else{
-		t.Errorf("data is %v",data)
+	if err != nil {
+		t.Errorf("mogno find error,%s", err.Error())
+	} else {
+		t.Errorf("data is %v", data)
 	}
 }

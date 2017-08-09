@@ -5,10 +5,10 @@ package tgo
 import (
 	"github.com/gin-gonic/gin"
 	"net/url"
-	"strconv"
-	"time"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -33,7 +33,7 @@ func UtilSignCheckSign(c *gin.Context) bool {
 	}
 	SignAppSecretKey = ConfigAppGetString("AppSecretKey", "")
 	ps := UtilRequestGetAllParams(c)
-	if (!utilSignCheckSignTimestamp(c)) {
+	if !utilSignCheckSignTimestamp(c) {
 		return false
 	}
 	signTimestamp, _ := c.Cookie("signtimestamp")
@@ -59,7 +59,7 @@ func utilSignGetSortUpParamsString(ps url.Values) string {
 	sort.Strings(psKey)
 	ret := []string{}
 	for _, v := range psKey {
-		ret = append(ret, v + "=" + ps.Get(v))
+		ret = append(ret, v+"="+ps.Get(v))
 	}
 	return strings.Join(ret, "&")
 }
@@ -72,7 +72,7 @@ func utilSignCheckSignTimestamp(c *gin.Context) bool {
 	cookie, _ := c.Cookie("signtimestamp")
 	signTimestamp, _ := strconv.Atoi(cookie)
 	now := time.Now().Unix()
-	if now < int64(appLimitTime + signTimestamp) {
+	if now < int64(appLimitTime+signTimestamp) {
 		return true
 	}
 
