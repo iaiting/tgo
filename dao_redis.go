@@ -843,7 +843,7 @@ func (b *DaoRedis) ZAdd(key string, score int, data interface{}) bool {
 	defer daoPool.Put(redisResource, b.Persistent)
 
 	redisClient := redisResource.(ResourceConn)
-
+	key = b.getKey(key)
 	_, errDo := redisClient.Do("ZADD", key, score, data)
 
 	if errDo != nil {

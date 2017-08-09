@@ -11,7 +11,7 @@ var (
 )
 
 type ConfigCache struct {
-	Redis ConfigCacheRedis
+	Redis  ConfigCacheRedis
 	RedisP ConfigCacheRedis // 持久化Redis
 }
 
@@ -76,12 +76,12 @@ func ConfigCacheGetRedisWithConn(persistent bool) *ConfigCacheRedis {
 
 	configCacheGet()
 
-    var redisConfig ConfigCacheRedis
-    if !persistent {
-        redisConfig = cacheConfig.Redis
-    } else {
-        redisConfig = cacheConfig.RedisP
-    }
+	var redisConfig ConfigCacheRedis
+	if !persistent {
+		redisConfig = cacheConfig.Redis
+	} else {
+		redisConfig = cacheConfig.RedisP
+	}
 
 	return &redisConfig
 }

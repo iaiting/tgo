@@ -2,12 +2,12 @@ package tgo
 
 import (
 	"crypto/md5"
-	"fmt"
-	"strings"
-	"encoding/hex"
-	"io"
-	"crypto/sha1"
 	"crypto/rand"
+	"crypto/sha1"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"strings"
 )
 
 func UtilCryptoMD5Lower(str string) string {
