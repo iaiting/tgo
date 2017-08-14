@@ -54,7 +54,7 @@ func configMysqlClusterGetDefault() *ConfigMysqlCluster {
 func configMysqlClusterInit() {
 	if mysqlClusterConfig == nil || len(mysqlClusterConfig.MysqlCluster) == 0 || mysqlClusterConfig.MysqlCluster[0].DbName == "" {
 		configFileName := "mysql_cluster"
-		if pathExist(configFileName) {
+		if configPathExist(configFileName) {
 			mysqlClusterConfigMux.Lock()
 			defer mysqlClusterConfigMux.Unlock()
 			mysqlClusterConfig = NewConfigMysqlCluster()
