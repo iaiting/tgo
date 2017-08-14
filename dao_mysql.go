@@ -42,8 +42,8 @@ func init() {
 		config := NewConfigDb()
 		configPool := config.Mysql.GetPool()
 		poolTicker := time.NewTicker(time.Second * 60)
-    initMysqlPool(true)
-	  initMysqlPool(false)
+		initMysqlPool(true)
+		initMysqlPool(false)
 		//todo 优化动态控制池子大小
 
 		go monitorPool(configPool, poolTicker, true, MysqlReadPool)

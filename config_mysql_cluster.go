@@ -53,11 +53,14 @@ func configMysqlClusterGetDefault() *ConfigMysqlCluster {
 
 func configMysqlClusterInit() {
 	if mysqlClusterConfig == nil || len(mysqlClusterConfig.MysqlCluster) == 0 || mysqlClusterConfig.MysqlCluster[0].DbName == "" {
-		mysqlClusterConfigMux.Lock()
-		defer mysqlClusterConfigMux.Unlock()
-		mysqlClusterConfig = NewConfigMysqlCluster()
-		defaultMysqlClusterConfig := configMysqlClusterGetDefault()
-		configGet("mysql_cluster", mysqlClusterConfig, defaultMysqlClusterConfig)
+		configFileName := "mysql_cluster"
+		if pathExist(configFileName) {
+			mysqlClusterConfigMux.Lock()
+			defer mysqlClusterConfigMux.Unlock()
+			mysqlClusterConfig = NewConfigMysqlCluster()
+			defaultMysqlClusterConfig := configMysqlClusterGetDefault()
+			configGet(configFileName, mysqlClusterConfig, defaultMysqlClusterConfig)
+		}
 	}
 }
 
