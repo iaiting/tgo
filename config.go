@@ -41,6 +41,15 @@ func configGet(name string, data interface{}, defaultData interface{}) {
 	}
 }
 
+func configPathExist(name string) bool {
+	path := fmt.Sprintf("configs/%s.json", name)
+	_, err := os.Stat(path)
+	if err != nil && os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 func ConfigReload() {
 	configAppClear()
 	configCacheClear()
