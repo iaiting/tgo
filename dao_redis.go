@@ -799,14 +799,13 @@ func (b *DaoRedis) HLen(key string, data *int) bool {
 		return false
 	}
 
-	lenth, resultConv := resultData.(int)
+	lenth, resultConv := resultData.(int64)
 
 	if !resultConv {
-		UtilLogErrorf("redis data convert to int failed:%v", resultConv)
-
+		UtilLogErrorf("redis data convert to int64 failed:%v", resultConv)
 	}
-
-	data = &lenth
+	lenthInt := int(lenth)
+	data = &lenthInt
 
 	return resultConv
 }
