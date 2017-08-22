@@ -782,16 +782,16 @@ func (b *DaoRedis) HMSetE(key string, value map[string]interface{}) error {
 	return err
 }
 
-func (b *DaoRedis) HLen(key string, data *int) bool {
-	redisResource, err := b.InitRedisPool()
+func (p *DaoRedis) HLen(key string, data *int) bool {
+	redisResource, err := p.InitRedisPool()
 
 	if err != nil {
 		return false
 	}
-	defer daoPool.Put(redisResource, b.Persistent)
+	defer daoPool.Put(redisResource, p.Persistent)
 
 	redisClient := redisResource.(ResourceConn)
-
+	key = p.getKey(key)
 	resultData, errDo := redisClient.Do("HLEN", key)
 
 	if errDo != nil {
@@ -799,15 +799,14 @@ func (b *DaoRedis) HLen(key string, data *int) bool {
 		return false
 	}
 
-	lenth, resultConv := resultData.(int64)
+	length, b := resultData.(int64)
 
-	if !resultConv {
-		UtilLogErrorf("redis data convert to int64 failed:%v", resultConv)
+	if !b {
+		UtilLogErrorf("redis data convert to int64 failed:%v", resultData)
 	}
-	lenthInt := int(lenth)
-	data = &lenthInt
+	*data = int(length)
 
-	return resultConv
+	return b
 }
 
 func (b *DaoRedis) HDel(key string, data ...interface{}) bool {
