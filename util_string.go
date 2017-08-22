@@ -1,12 +1,12 @@
 package tgo
 
 import (
+	"bytes"
+	"math/rand"
+	"reflect"
 	"strconv"
 	"strings"
-	"math/rand"
 	"time"
-	"reflect"
-	"bytes"
 )
 
 const (
@@ -105,7 +105,7 @@ func UtilStringGenerateRandomString(n int) string {
 }
 
 func UtilStringCheckStringExisted(strs []string, str string) bool {
-	for _, v := range strs  {
+	for _, v := range strs {
 		if v == str {
 			return true
 		}
@@ -114,7 +114,7 @@ func UtilStringCheckStringExisted(strs []string, str string) bool {
 	return false
 }
 
-func UtilStringContains(obj interface{}, target interface{}) (bool) {
+func UtilStringContains(obj interface{}, target interface{}) bool {
 	targetValue := reflect.ValueOf(target)
 	switch reflect.TypeOf(target).Kind() {
 	case reflect.Slice, reflect.Array:

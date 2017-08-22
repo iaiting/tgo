@@ -29,7 +29,7 @@ func UtilRequestGetAllParams(c *gin.Context) (ret url.Values) {
 	return ret
 }
 
-func UtilRequestQueryDataString(c *gin.Context) (string) {
+func UtilRequestQueryDataString(c *gin.Context) string {
 	var query url.Values
 	query = UtilRequestGetAllParams(c)
 

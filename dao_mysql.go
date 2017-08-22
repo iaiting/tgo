@@ -35,14 +35,20 @@ var (
 )
 
 func init() {
-	config := NewConfigDb()
-	configPool := config.Mysql.GetPool()
-	poolTicker := time.NewTicker(time.Second * 60)
-	initMysqlPool(true)
-	initMysqlPool(false)
-	//todo 优化动态控制池子大小
-	go monitorPool(configPool, poolTicker, true, MysqlReadPool)
-	go monitorPool(configPool, poolTicker, false, MysqlWritePool)
+	//初始化mysql集群
+	if ConfigMysqlClusterGetDbCount() > 0 {
+		initCluster()
+	} else {
+		config := NewConfigDb()
+		configPool := config.Mysql.GetPool()
+		poolTicker := time.NewTicker(time.Second * 60)
+		initMysqlPool(true)
+		initMysqlPool(false)
+		//todo 优化动态控制池子大小
+
+		go monitorPool(configPool, poolTicker, true, MysqlReadPool)
+		go monitorPool(configPool, poolTicker, false, MysqlWritePool)
+	}
 }
 
 func monitorPool(configPool *ConfigDbPool, poolTicker *time.Ticker, isRead bool, mysqlPool *MysqlConnectionPool) {
@@ -131,17 +137,24 @@ func (d *DaoMysql) Insert(model interface{}) error {
 	return errInsert
 }
 
-func (d *DaoMysql) Select(condition string, data interface{}, field ...[]string) error {
-	orm, err := d.GetReadOrm()
+func (p *DaoMysql) Select(condition string, data interface{}, field ...[]string) error {
+	orm, err := p.GetReadOrm()
 	if err != nil {
 		return err
 	}
 	defer orm.Put()
+
+	return p.SelectWithConn(&orm, condition, data, field...)
+
+}
+
+// SelectWithConn SelectWithConn 事务的时候使用
+func (p *DaoMysql) SelectWithConn(orm *MysqlConnection, condition string, data interface{}, field ...[]string) error {
 	var errFind error
 	if len(field) == 0 {
-		errFind = orm.Table(d.TableName).Where(condition).Find(data).Error
+		errFind = orm.Table(p.TableName).Where(condition).Find(data).Error
 	} else {
-		errFind = orm.Table(d.TableName).Where(condition).Select(field[0]).Find(data).Error
+		errFind = orm.Table(p.TableName).Where(condition).Select(field[0]).Find(data).Error
 	}
 
 	return errFind
