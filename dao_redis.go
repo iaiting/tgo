@@ -446,6 +446,76 @@ func (b *DaoRedis) doMGet(cmd string, args []interface{}, value interface{}) err
 	return nil
 }
 
+func (b *DaoRedis) doMGetGo(keys []string, value interface{}) error {
+	var (
+		args []interface{}
+		keysMap map[int]interface{}
+		keysLen int
+		rDo interface{}
+		errDo error
+		resultDo bool
+		wg sync.WaitGroup
+		l sync.Mutex
+	)
+	keysLen = len(keys)
+	if keysLen == 0 {
+		return nil
+	}
+	refValue := reflect.ValueOf(value)
+	if refValue.Kind() != reflect.Ptr || refValue.Elem().Kind() != reflect.Slice || refValue.Elem().Type().Elem().Kind() != reflect.Ptr {
+		return errors.New(fmt.Sprintf("value is not *[]*object:  %v", refValue.Elem().Type().Elem().Kind()))
+	}
+	refSlice := refValue.Elem()
+	refItem := refSlice.Type().Elem()
+	resultDo = true
+	for _, v := range keys {
+		args = append(args, b.getKey(v))
+	}
+	keysMap = make(map[int]interface{}, keysLen)
+	wg.Add(keysLen)
+	for k, v := range args {
+		go func(mapK int, getK interface{}) {
+			redisResource, err := b.InitRedisPool()
+			if err != nil {
+				resultDo = false
+			} else {
+				redisClient := redisResource.(ResourceConn)
+				rDo, errDo = redisClient.Do("GET", getK)
+				l.Lock()
+				keysMap[mapK] = rDo
+				l.Unlock()
+				if errDo != nil {
+					UtilLogErrorf("run redis GET command failed: error:%s,args:%v", errDo.Error(), getK)
+					resultDo = false
+				}
+				daoPool.Put(redisResource, b.Persistent)
+			}
+			wg.Done()
+		}(k, v)
+	}
+	wg.Wait()
+	if !resultDo {
+		return errors.New("doMGetGo one get error")
+	}
+	//整合结果
+	for k := range args {
+		r := keysMap[k]
+		if r != nil {
+			item := reflect.New(refItem)
+			errorJson := json.Unmarshal(r.([]byte), item.Interface())
+			if errorJson != nil {
+				UtilLogErrorf("GET command result failed:%s", errorJson.Error())
+				return errorJson
+			}
+			refSlice.Set(reflect.Append(refSlice, item.Elem()))
+		} else {
+			refSlice.Set(reflect.Append(refSlice, reflect.Zero(refItem)))
+		}
+	}
+
+	return nil
+}
+
 /*
 func (b *DaoRedis) doMGet(cmd string, args []interface{}, value []interface{}) error {
 
@@ -665,6 +735,12 @@ func (b *DaoRedis) MGet(keys []string, data interface{}) error {
 
 	err := b.doMGet("MGET", args, data)
 
+	return err
+}
+
+//封装mget通过go并发get
+func (b *DaoRedis) MGetGo(keys []string, data interface{}) error {
+	err := b.doMGetGo(keys, data)
 	return err
 }
 
