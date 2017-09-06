@@ -213,14 +213,19 @@ func (p *DaoMysql) Find(condition string, data interface{}, skip int, limit int,
 	return errFind
 }
 
-func (p *DaoMysql) First(condition string, data interface{}) error {
+func (p *DaoMysql) First(condition string, data interface{}, sort string) error {
 	orm, err := p.GetReadOrm()
 	if err != nil {
 		return err
 	}
 	defer orm.Put()
 
-	err = orm.Table(p.TableName).Where(condition).First(data).Error
+	db := orm.Table(p.TableName).Where(condition)
+	if !UtilIsEmpty(sort) {
+		db = db.Order(sort)
+	}
+
+	err = db.First(data).Error
 	if err != nil {
 		UtilLogError(fmt.Sprintf("findone from table:%s error:%s, condition:%s", p.TableName, err.Error(), condition))
 	}

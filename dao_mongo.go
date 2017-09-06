@@ -611,7 +611,7 @@ func (m *DaoMongo) processError(err error, formatter string, a ...interface{}) e
 	return err
 }
 
-func (m *DaoMongo) FindOne(condition interface{}, data interface{}) error {
+func (m *DaoMongo) FindOne(condition interface{}, data interface{}, sortFields ...string) error {
 
 	session, dbName, err := m.GetSession()
 	if err != nil {
@@ -619,7 +619,13 @@ func (m *DaoMongo) FindOne(condition interface{}, data interface{}) error {
 	}
 	defer session.Close()
 
-	err = session.DB(dbName).C(m.CollectionName).Find(condition).One(data)
+	s := session.DB(dbName).C(m.CollectionName).Find(condition)
+	if len(sortFields) == 0 {
+		sortFields = append(sortFields, "-_id")
+	}
+	s = s.Sort(sortFields...)
+
+	err = s.One(data)
 	if err != nil {
 		UtilLogErrorf("mongo %s findOne failed:%v", m.CollectionName, err.Error())
 	}
