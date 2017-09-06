@@ -159,3 +159,71 @@ func (p *DaoMysql) SelectWithConn(orm *MysqlConnection, condition string, data i
 
 	return errFind
 }
+
+func (p *DaoMysql) Update(condition string, sets map[string]interface{}) error {
+	orm, err := p.GetWriteOrm()
+	if err != nil {
+		return err
+	}
+	defer orm.Put()
+
+	err = orm.Table(p.TableName).Where(condition).Updates(sets).Error
+	if err != nil {
+		UtilLogError(fmt.Sprintf("update table:%s error:%s, condition:%s, set:%+v", p.TableName, err.Error(), condition, sets))
+	}
+	return err
+}
+
+func (p *DaoMysql) Remove(condition string) error {
+	orm, err := p.GetWriteOrm()
+	if err != nil {
+		return err
+	}
+	defer orm.Put()
+
+	err = orm.Table(p.TableName).Where(condition).Delete(nil).Error
+	if err != nil {
+		UtilLogError(fmt.Sprintf("remove from table:%s error:%s, condition:%s", p.TableName, err.Error(), condition))
+	}
+	return err
+}
+
+func (p *DaoMysql) Find(condition string, data interface{}, skip int, limit int, fields []string, sort string) error {
+	orm, err := p.GetReadOrm()
+	if err != nil {
+		return err
+	}
+	defer orm.Put()
+	db := orm.Table(p.TableName).Where(condition)
+
+	if len(fields) > 0 {
+		db = db.Select(fields)
+	}
+	if skip > 0 {
+		db = db.Offset(skip)
+	}
+	if limit > 0 {
+		db = db.Limit(limit)
+	}
+	if sort != "" {
+		db = db.Order(sort)
+	}
+	errFind := db.Find(data).Error
+
+	return errFind
+}
+
+func (p *DaoMysql) First(condition string, data interface{}) error {
+	orm, err := p.GetReadOrm()
+	if err != nil {
+		return err
+	}
+	defer orm.Put()
+
+	err = orm.Table(p.TableName).Where(condition).First(data).Error
+	if err != nil {
+		UtilLogError(fmt.Sprintf("findone from table:%s error:%s, condition:%s", p.TableName, err.Error(), condition))
+	}
+
+	return err
+}

@@ -610,3 +610,19 @@ func (m *DaoMongo) processError(err error, formatter string, a ...interface{}) e
 
 	return err
 }
+
+func (m *DaoMongo) FindOne(condition interface{}, data interface{}) error {
+
+	session, dbName, err := m.GetSession()
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+
+	err = session.DB(dbName).C(m.CollectionName).Find(condition).One(data)
+	if err != nil {
+		UtilLogErrorf("mongo %s findOne failed:%v", m.CollectionName, err.Error())
+	}
+
+	return err
+}
