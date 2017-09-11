@@ -449,13 +449,12 @@ func (b *DaoRedis) doMGet(cmd string, args []interface{}, value interface{}) err
 func (b *DaoRedis) doMGetGo(keys []string, value interface{}) error {
 	var (
 		args []interface{}
-		keysMap map[int]interface{}
+		keysMap sync.Map
 		keysLen int
 		rDo interface{}
 		errDo error
 		resultDo bool
 		wg sync.WaitGroup
-		l sync.Mutex
 	)
 	keysLen = len(keys)
 	if keysLen == 0 {
@@ -471,19 +470,16 @@ func (b *DaoRedis) doMGetGo(keys []string, value interface{}) error {
 	for _, v := range keys {
 		args = append(args, b.getKey(v))
 	}
-	keysMap = make(map[int]interface{}, keysLen)
 	wg.Add(keysLen)
-	for k, v := range args {
-		go func(mapK int, getK interface{}) {
+	for _, v := range args {
+		go func(getK interface{}) {
 			redisResource, err := b.InitRedisPool()
 			if err != nil {
 				resultDo = false
 			} else {
 				redisClient := redisResource.(ResourceConn)
 				rDo, errDo = redisClient.Do("GET", getK)
-				l.Lock()
-				keysMap[mapK] = rDo
-				l.Unlock()
+				keysMap.Store(getK, rDo)
 				if errDo != nil {
 					UtilLogErrorf("run redis GET command failed: error:%s,args:%v", errDo.Error(), getK)
 					resultDo = false
@@ -491,16 +487,16 @@ func (b *DaoRedis) doMGetGo(keys []string, value interface{}) error {
 				daoPool.Put(redisResource, b.Persistent)
 			}
 			wg.Done()
-		}(k, v)
+		}(v)
 	}
 	wg.Wait()
 	if !resultDo {
 		return errors.New("doMGetGo one get error")
 	}
 	//整合结果
-	for k := range args {
-		r := keysMap[k]
-		if r != nil {
+	for _, v := range args {
+		r, ok := keysMap.Load(v)
+		if ok && r != nil {
 			item := reflect.New(refItem)
 			errorJson := json.Unmarshal(r.([]byte), item.Interface())
 			if errorJson != nil {
