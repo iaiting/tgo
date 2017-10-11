@@ -1252,3 +1252,13 @@ func (b *DaoRedis) SRem(key string, argPs []interface{}) bool {
 	}
 	return true
 }
+
+func (b *DaoRedis) HGetAll(key string, data interface{}) error {
+	var args []interface{}
+
+	args = append(args, b.getKey(key))
+
+	err := b.doMGet("HGETALL", args, data)
+
+	return err
+}
