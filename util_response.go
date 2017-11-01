@@ -3,7 +3,7 @@ package tgo
 import (
 	"encoding/json"
 	"net/http"
-
+	"bytes"
 	"github.com/gin-gonic/gin"
 )
 
@@ -42,7 +42,7 @@ func UtilResponseReturnJsonWithMsg(c *gin.Context, code int, msg string, model i
 	if UtilIsEmpty(callback) {
 		c.JSON(200, rj)
 	} else {
-		b, err := json.Marshal(rj)
+		b, err := utilResponseJSONMarshal(rj)
 		if err != nil {
 			UtilLogErrorf("jsonp marshal error:%s", err.Error())
 		} else {
@@ -61,4 +61,12 @@ func UtilResponseReturnJsonSuccess(c *gin.Context, data interface{}) {
 
 func UtilResponseRedirect(c *gin.Context, url string) {
 	c.Redirect(http.StatusMovedPermanently, url)
+}
+
+func utilResponseJSONMarshal(t interface{}) ([]byte, error) {
+	buffer := &bytes.Buffer{}
+	encoder := json.NewEncoder(buffer)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(t)
+	return buffer.Bytes(), err
 }
