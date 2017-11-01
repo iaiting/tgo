@@ -40,7 +40,19 @@ func UtilResponseReturnJsonWithMsg(c *gin.Context, code int, msg string, model i
 	}
 
 	if UtilIsEmpty(callback) {
-		c.JSON(200, rj)
+		c.Status(200)
+
+		header := c.Writer.Header()
+		if val := header["Content-Type"]; len(val) == 0 {
+			header["Content-Type"] = []string{"application/json; charset=utf-8"}
+		}
+
+		encoder := json.NewEncoder(c.Writer)
+		encoder.SetEscapeHTML(false)
+		err := encoder.Encode(rj)
+		if err!=nil{
+			panic(err)
+		}
 	} else {
 		b, err := utilResponseJSONMarshal(rj)
 		if err != nil {
