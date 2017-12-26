@@ -782,6 +782,32 @@ func (b *DaoRedis) MDel(key ...string) bool {
 	return true
 }
 
+func (b *DaoRedis) Exists(key string) (bool, error) {
+	redisResource, err := b.InitRedisPool()
+	if err != nil {
+		return false, err
+	}
+	key = b.getKey(key)
+	defer daoPool.Put(redisResource, b.Persistent)
+	redisClient := redisResource.(ResourceConn)
+	data, err := redisClient.Do("EXISTS", key)
+	if err != nil {
+		UtilLogErrorf("run redis EXISTS command failed: error:%s,key:%s", err.Error(), key)
+		return false, err
+	}
+	count, result := data.(int64)
+	if !result {
+		err := errors.New(fmt.Sprintf("get EXISTS command result failed:%v ,is %v", data, reflect.TypeOf(data)))
+		UtilLogErrorf(err.Error())
+		return false, err
+	}
+	if count == 1 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 //hash start
 func (b *DaoRedis) HIncrby(key string, field string, value int) (int, bool) {
 
@@ -899,6 +925,32 @@ func (b *DaoRedis) HDel(key string, data ...interface{}) bool {
 	}
 
 	return true
+}
+
+func (b *DaoRedis) HExists(key string, field string) (bool, error) {
+	redisResource, err := b.InitRedisPool()
+	if err != nil {
+		return false, err
+	}
+	key = b.getKey(key)
+	defer daoPool.Put(redisResource, b.Persistent)
+	redisClient := redisResource.(ResourceConn)
+	data, err := redisClient.Do("HEXISTS", key, field)
+	if err != nil {
+		UtilLogErrorf("run redis HEXISTS command failed: error:%s,key:%s", err.Error(), key)
+		return false, err
+	}
+	count, result := data.(int64)
+	if !result {
+		err := errors.New(fmt.Sprintf("get HEXISTS command result failed:%v ,is %v", data, reflect.TypeOf(data)))
+		UtilLogErrorf(err.Error())
+		return false, err
+	}
+	if count == 1 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // hash end
