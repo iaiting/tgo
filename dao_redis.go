@@ -527,6 +527,21 @@ func (b *DaoRedis) doMGetStringMap(cmd string, args string) (err error, data map
 	return
 }
 
+func (b *DaoRedis) doMGetIntMap(cmd string, args string) (err error, data map[string]int) {
+	redisResource, err := b.InitRedisPool()
+	if err != nil {
+		return err, nil
+	}
+	defer daoPool.Put(redisResource, b.Persistent)
+	redisClient := redisResource.(ResourceConn)
+	data, err = redis.IntMap(redisClient.Do(cmd, args))
+	if err != nil {
+		UtilLogErrorf("run redis %s command failed: error:%v, args:%v", cmd, err, args)
+		return err, nil
+	}
+	return
+}
+
 /*
 func (b *DaoRedis) doMGet(cmd string, args []interface{}, value []interface{}) error {
 
@@ -1333,4 +1348,9 @@ func (b *DaoRedis) HGetAll(key string, data interface{}) error {
 func (b *DaoRedis) HGetAllStringMap(key string) (err error, data map[string]string) {
 	args := b.getKey(key)
 	return b.doMGetStringMap("HGETALL", args)
+}
+
+func (b *DaoRedis) HGetAllIntMap(key string) (err error, data map[string]int) {
+	args := b.getKey(key)
+	return b.doMGetIntMap("HGETALL", args)
 }
