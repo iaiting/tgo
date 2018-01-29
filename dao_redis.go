@@ -448,13 +448,13 @@ func (b *DaoRedis) doMGet(cmd string, args []interface{}, value interface{}) err
 
 func (b *DaoRedis) doMGetGo(keys []string, value interface{}) error {
 	var (
-		args []interface{}
-		keysMap sync.Map
-		keysLen int
-		rDo interface{}
-		errDo error
+		args     []interface{}
+		keysMap  sync.Map
+		keysLen  int
+		rDo      interface{}
+		errDo    error
 		resultDo bool
-		wg sync.WaitGroup
+		wg       sync.WaitGroup
 	)
 	keysLen = len(keys)
 	if keysLen == 0 {
@@ -510,6 +510,21 @@ func (b *DaoRedis) doMGetGo(keys []string, value interface{}) error {
 	}
 
 	return nil
+}
+
+func (b *DaoRedis) doMGetStringMap(cmd string, args string) (err error, data map[string]string) {
+	redisResource, err := b.InitRedisPool()
+	if err != nil {
+		return err, nil
+	}
+	defer daoPool.Put(redisResource, b.Persistent)
+	redisClient := redisResource.(ResourceConn)
+	data, err = redis.StringMap(redisClient.Do(cmd, args))
+	if err != nil {
+		UtilLogErrorf("run redis %s command failed: error:%v, args:%v", cmd, err, args)
+		return err, nil
+	}
+	return
 }
 
 /*
@@ -1313,4 +1328,9 @@ func (b *DaoRedis) HGetAll(key string, data interface{}) error {
 	err := b.doMGet("HGETALL", args, data)
 
 	return err
+}
+
+func (b *DaoRedis) HGetAllStringMap(key string) (err error, data map[string]string) {
+	args := b.getKey(key)
+	return b.doMGetStringMap("HGETALL", args)
 }
