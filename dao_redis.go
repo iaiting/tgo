@@ -784,6 +784,10 @@ func (b *DaoRedis) SetNX(key string, value interface{}) (int64, bool) {
 	return b.doSetNX("SETNX", key, value, 0)
 }
 
+func (b *DaoRedis) SetNXNoExpire(key string, value interface{}) (int64, bool) {
+	return b.doSetNX("SETNX", key, value, -1)
+}
+
 func (b *DaoRedis) Del(key string) bool {
 
 	key = b.getKey(key)
