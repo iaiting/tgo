@@ -480,11 +480,11 @@ func (b *DaoRedis) doMGetGo(keys []string, value interface{}) error {
 				redisClient := redisResource.(ResourceConn)
 				rDo, errDo = redisClient.Do("GET", getK)
 				keysMap.Store(getK, rDo)
+				daoPool.Put(redisResource, b.Persistent)
 				if errDo != nil {
 					UtilLogErrorf("run redis GET command failed: error:%s,args:%v", errDo.Error(), getK)
 					resultDo = false
 				}
-				daoPool.Put(redisResource, b.Persistent)
 			}
 			wg.Done()
 		}(v)
