@@ -6,13 +6,13 @@ import (
 
 var (
 	cacheConfigMux sync.Mutex
-
-	cacheConfig *ConfigCache
+	cacheConfig    *ConfigCache
 )
 
 type ConfigCache struct {
-	Redis  ConfigCacheRedis
-	RedisP ConfigCacheRedis // 持久化Redis
+	Redis   ConfigCacheRedis
+	RedisP  ConfigCacheRedis // 持久化Redis
+	Dynamic ConfigCacheDynamic
 }
 
 type ConfigCacheRedis struct {
@@ -26,62 +26,52 @@ type ConfigCacheRedis struct {
 	PoolMaxActive   int
 	PoolIdleTimeout int
 	PoolMinActive   int
+	Password        string
 }
 
-func configCacheGet() {
+type ConfigCacheDynamic struct {
+	DynamicAddress string
+	IsDynamic      bool
+	CycleTime      int
+}
 
+func configCacheGet() (err error) {
 	if cacheConfig == nil || len(cacheConfig.Redis.Address) == 0 {
-
 		cacheConfigMux.Lock()
-
 		defer cacheConfigMux.Unlock()
-
-		if cacheConfig == nil || len(cacheConfig.Redis.Address) == 0 {
-			cacheConfig = &ConfigCache{}
-
-			defaultCacheConfig := configCacheGetDefault()
-
-			configGet("cache", cacheConfig, defaultCacheConfig)
-		}
+		cacheConfig = new(ConfigCache)
+		return configGet("cache", cacheConfig, nil)
 	}
+	return
 }
 
-func configCacheClear() {
+func configCacheReload() {
 	cacheConfigMux.Lock()
-
 	defer cacheConfigMux.Unlock()
-
 	cacheConfig = nil
-}
-
-func configCacheGetDefault() *ConfigCache {
-	return &ConfigCache{Redis: ConfigCacheRedis{[]string{"ip:port"}, "prefix", 604800, 1000, 1000, 1000, 10, 100, 180000, 2}, RedisP: ConfigCacheRedis{[]string{"ip:port"}, "prefix", 604800, 1000, 1000, 1000, 10, 100, 180000, 2}}
+	configCacheGet()
 }
 
 func ConfigCacheGetRedis() *ConfigCacheRedis {
-
 	configCacheGet()
-
-	redisConfig := cacheConfig.Redis
-
-	if &redisConfig == nil {
-		//log
-		redisConfig = configCacheGetDefault().Redis
+	if cacheConfig == nil {
+		return new(ConfigCacheRedis)
 	}
-
-	return &redisConfig
+	return &cacheConfig.Redis
 }
 
 func ConfigCacheGetRedisWithConn(persistent bool) *ConfigCacheRedis {
-
 	configCacheGet()
-
 	var redisConfig ConfigCacheRedis
 	if !persistent {
 		redisConfig = cacheConfig.Redis
 	} else {
 		redisConfig = cacheConfig.RedisP
 	}
-
 	return &redisConfig
+}
+
+func ConfigCacheGetRedisDynamic() *ConfigCacheDynamic {
+	configCacheGet()
+	return &cacheConfig.Dynamic
 }
