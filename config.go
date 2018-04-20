@@ -8,22 +8,26 @@ import (
 )
 
 //获取配置文件优先级 mount_configs > configs
-func configGet(name string, data interface{}, defaultData interface{}) {
+func configGet(name string, data interface{}, defaultData interface{}) (err error) {
 	absPath := getConfigPath(name)
-	file, err := os.Open(absPath)
+	var file *os.File
+	file, err = os.Open(absPath)
 	if err != nil {
 		UtilLogError(fmt.Sprintf("open %s config file failed:%s", name, err.Error()))
 		data = defaultData
+		return
 	} else {
 		defer file.Close()
 		decoder := json.NewDecoder(file)
-		errDecode := decoder.Decode(data)
-		if errDecode != nil {
+		err = decoder.Decode(data)
+		if err != nil {
 			//记录日志
-			UtilLogError(fmt.Sprintf("decode %s config error:%s", name, errDecode.Error()))
+			UtilLogError(fmt.Sprintf("decode %s config error:%s", name, err.Error()))
 			data = defaultData
+			return
 		}
 	}
+	return
 }
 
 func getConfigPath(name string) (absPath string) {
@@ -62,7 +66,7 @@ func configPathExist(name string) bool {
 
 func ConfigReload() {
 	configAppClear()
-	configCacheClear()
+	configCacheReload()
 	configCodeClear()
 	configDbClear()
 }

@@ -15,6 +15,15 @@ import (
 	"golang.org/x/net/context"
 )
 
+var (
+	dynamicAddress RedisDynamicAddress
+)
+
+type RedisDynamicAddress struct {
+	Address []string
+	L       sync.RWMutex
+}
+
 type DaoRedis struct {
 	KeyName    string
 	Persistent bool // 持久化key
@@ -25,6 +34,26 @@ type redisPool struct {
 	redisPoolMux  sync.Mutex
 	redisPPool    *pools.ResourcePool // 持久化Pool
 	redisPPoolMux sync.Mutex
+}
+
+func InitDynamicRedisAddress() {
+	dynamic := ConfigCacheGetRedisDynamic()
+	if dynamic.IsDynamic {
+		if dynamic.CycleTime <= 0 {
+			dynamic.CycleTime = 300
+		}
+		go func() {
+			t := time.NewTicker(time.Duration(dynamic.CycleTime) * time.Second)
+			for {
+				select {
+				case <-t.C:
+					dynamicAddress.L.Lock()
+					_, dynamicAddress.Address = getDynamicRedisAddress(dynamic.DynamicAddress)
+					dynamicAddress.L.Unlock()
+				}
+			}
+		}()
+	}
 }
 
 func (p *redisPool) Get(persistent bool) (*pools.ResourcePool, sync.Mutex) {
@@ -62,48 +91,53 @@ func (r ResourceConn) Close() {
 	r.Conn.Close()
 }
 
-/*
-func (b *DaoRedis) InitRedis() (redis.Conn, error) {
-
-	cacheConfig := ConfigCacheGetRedisWithConn(b.Persistent)()
-
-	conn, err := redis.DialTimeout("tcp", fmt.Sprintf("%s:%d", cacheConfig.Address, cacheConfig.Port), time.Duration(cacheConfig.ConnectTimeout)*time.Millisecond, time.Duration(cacheConfig.ReadTimeout)*time.Millisecond, time.Duration(cacheConfig.WriteTimeout)*time.Millisecond)
-
-	if err != nil {
-
-		UtilLogErrorf("open redis error: %s", err.Error())
-
+func redisGetAddress(conf *ConfigCacheRedis) (address []string, err error) {
+	dynamic := ConfigCacheGetRedisDynamic()
+	if dynamic.IsDynamic {
+		dynamicAddress.L.RLock()
+		defer dynamicAddress.L.RUnlock()
+		if len(dynamicAddress.Address) > 0 {
+			return dynamicAddress.Address, nil
+		}
+		err, address = getDynamicRedisAddress(dynamic.DynamicAddress)
+		return
 	}
-
-	return conn, err
+	address = conf.Address
+	err = nil
+	return
 }
-*/
-func (b *DaoRedis) dial(fromIndex int) (redis.Conn, int, error) {
 
+func (b *DaoRedis) dial(fromIndex int) (conn redis.Conn, index int, err error) {
 	cacheConfig := ConfigCacheGetRedisWithConn(b.Persistent)
-
-	if len(cacheConfig.Address) > 0 {
-		if fromIndex+1 > len(cacheConfig.Address) {
+	address, err := redisGetAddress(cacheConfig)
+	if len(address) > 0 {
+		if fromIndex+1 > len(address) {
 			fromIndex = 0
 		}
-
-		var c redis.Conn
-		var err error
-		for i, addr := range cacheConfig.Address {
+		for i, addr := range address {
 			if i >= fromIndex {
-				c, err = redis.DialTimeout("tcp", addr, time.Duration(cacheConfig.ConnectTimeout)*time.Millisecond, time.Duration(cacheConfig.ReadTimeout)*time.Millisecond, time.Duration(cacheConfig.WriteTimeout)*time.Millisecond)
+				var opt []redis.DialOption
+				opt = append(opt, redis.DialConnectTimeout(time.Duration(cacheConfig.ConnectTimeout)*time.Millisecond),
+					redis.DialReadTimeout(time.Duration(cacheConfig.ReadTimeout)*time.Millisecond),
+					redis.DialWriteTimeout(time.Duration(cacheConfig.WriteTimeout)*time.Millisecond))
+				if cacheConfig.Password != "" {
+					opt = append(opt, redis.DialPassword(cacheConfig.Password))
+				}
+				conn, err = redis.Dial("tcp", addr, opt...)
 				if err != nil {
 					UtilLogErrorf("dail redis pool error: %s", err.Error())
 				} else {
-					return c, i, err
+					index = i
+					return
 				}
 			}
 		}
-		return c, 0, err
+		return conn, 0, err
 	} else {
 		return nil, 0, errors.New("redis address lenth is 0")
 	}
 }
+
 func (b *DaoRedis) InitRedisPool() (pools.Resource, error) {
 
 	var poolHandler *pools.ResourcePool
